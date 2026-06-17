@@ -12,8 +12,8 @@ namespace Reader.Services;
 public class SupabaseService
 {
     // ----- Remplir avec les valeurs du projet Supabase -----
-    public const string Url = "https://VOTRE_REF.supabase.co";   // ex. https://abcdef.supabase.co
-    public const string AnonKey = "VOTRE_ANON_KEY";              // clé publique anon
+    public const string Url = "https://khqtzumecfsfneaajxiu.supabase.co";   // ex. https://abcdef.supabase.co
+    public const string AnonKey = "sb_publishable_1r8h8yVCKeOZxl9aucIDSw_ZqACo8zM";              // clé publique anon
 
     readonly HttpClient _http = new() { BaseAddress = new Uri(Url) };
 
