@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- AppThemeBinding drives the dark/light toggle everywhere via these keys. -->
+    <Style TargetType="ContentPage" ApplyToDerivedTypes="True">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Dark={StaticResource Bg}, Light={StaticResource BgLight}}" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style TargetType="Label">
+        <Setter Property="TextColor" Value="{AppThemeBinding Dark={StaticResource Text}, Light={StaticResource TextLight}}" />
+        <Setter Property="FontFamily" Value="OpenSansRegular" />
+    </Style>
+
+    <Style x:Key="Title" TargetType="Label">
+        <Setter Property="FontFamily" Value="OpenSansSemibold" />
+        <Setter Property="FontSize" Value="22" />
+    </Style>
+
+    <Style x:Key="Muted" TargetType="Label">
+        <Setter Property="TextColor" Value="{AppThemeBinding Dark={StaticResource Muted}, Light={StaticResource MutedLight}}" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <Style x:Key="CardFrame" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Dark={StaticResource Card}, Light={StaticResource CardLight}}" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 14" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+        <Setter Property="TextColor" Value="White" />
+        <Setter Property="FontFamily" Value="OpenSansSemibold" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="16,10" />
+    </Style>
+
+    <Style x:Key="Icon" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Dark={StaticResource Text}, Light={StaticResource TextLight}}" />
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="WidthRequest" Value="48" />
+        <Setter Property="HeightRequest" Value="48" />
+        <Setter Property="CornerRadius" Value="24" />
+    </Style>
+
+    <Style TargetType="ActivityIndicator">
+        <Setter Property="Color" Value="{StaticResource Accent}" />
+    </Style>
+</ResourceDictionary>

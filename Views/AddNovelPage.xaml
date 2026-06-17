@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Reader.ViewModels"
+             x:Class="Reader.Views.AddNovelPage"
+             x:DataType="vm:AddNovelViewModel">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16" RowSpacing="12">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+            <Button Style="{StaticResource Icon}" Text="&#x2190;" Command="{Binding CancelCommand}" />
+            <Label Grid.Column="1" Text="Add Webnovel" Style="{StaticResource Title}" VerticalOptions="Center" />
+        </Grid>
+
+        <!-- Option 2: direct URL (novel or chapter url both work) -->
+        <Border Grid.Row="1" Style="{StaticResource CardFrame}" Padding="6">
+            <Grid ColumnDefinitions="*,Auto">
+                <Entry Placeholder="Paste a novel or chapter URL…" Text="{Binding Url}" ReturnCommand="{Binding FetchCommand}" />
+                <Button Grid.Column="1" Text="Fetch" Command="{Binding FetchCommand}" IsEnabled="{Binding Busy, Converter={StaticResource Not}}" />
+            </Grid>
+        </Border>
+
+        <HorizontalStackLayout Grid.Row="2" Spacing="8">
+            <ActivityIndicator IsRunning="{Binding Busy}" IsVisible="{Binding Busy}" />
+            <Label Text="{Binding Status}" Style="{StaticResource Muted}" VerticalOptions="Center" />
+        </HorizontalStackLayout>
+
+        <!-- Option 1: in-app browser. "Use this page" copies the current url into the box. -->
+        <Border Grid.Row="3" Style="{StaticResource CardFrame}" Padding="0">
+            <Grid RowDefinitions="Auto,*">
+                <Button Text="Use this page" Margin="8" HorizontalOptions="Start" Clicked="UsePage" />
+                <WebView Grid.Row="1" x:Name="Web" Navigated="OnNav" />
+            </Grid>
+        </Border>
+    </Grid>
+</ContentPage>

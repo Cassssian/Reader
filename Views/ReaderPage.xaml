@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Reader.ViewModels"
+             xmlns:c="clr-namespace:Reader.Controls"
+             x:Class="Reader.Views.ReaderPage"
+             x:DataType="vm:ReaderViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto" Padding="16,12">
+
+        <!-- Top bar: back · mode segmented · language dropdown -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+            <Button Style="{StaticResource Icon}" Text="&#x2190;" Clicked="Back" />
+            <HorizontalStackLayout Grid.Column="1" HorizontalOptions="Center" Spacing="0">
+                <Button x:Name="M0" Text="Audio" Style="{StaticResource Icon}" WidthRequest="70" Clicked="Mode" />
+                <Button x:Name="M1" Text="A+Text" Style="{StaticResource Icon}" WidthRequest="70" Clicked="Mode" />
+                <Button x:Name="M2" Text="Text" Style="{StaticResource Icon}" WidthRequest="70" Clicked="Mode" />
+            </HorizontalStackLayout>
+            <Picker Grid.Column="2" x:Name="Lang" Title="Lang" WidthRequest="120"
+                    SelectedIndexChanged="LangPick" />
+        </Grid>
+
+        <!-- Content area: scrolling highlighted text (modes 1 & 2) -->
+        <ScrollView Grid.Row="1" x:Name="Scroll" Margin="0,12" IsVisible="{Binding ShowText}">
+            <Label x:Name="Body" LineHeight="1.6" FontSize="17">
+                <Label.FormattedText>
+                    <MultiBinding Converter="{StaticResource Highlighter}">
+                        <Binding Path="Text" />
+                        <Binding Path="HlStart" />
+                        <Binding Path="HlLen" />
+                    </MultiBinding>
+                </Label.FormattedText>
+            </Label>
+        </ScrollView>
+
+        <!-- Audio-only: centered waveform visualizer -->
+        <VerticalStackLayout Grid.Row="1" VerticalOptions="Center" Spacing="20"
+                             IsVisible="{Binding ShowText, Converter={StaticResource Not}}">
+            <Label Text="{Binding Episode.Title}" Style="{StaticResource Title}" HorizontalTextAlignment="Center" />
+            <c:AudioWaveView Active="{Binding Playing}" HeightRequest="90" />
+        </VerticalStackLayout>
+
+        <!-- Transport: seekbar + skip/play + speed -->
+        <VerticalStackLayout Grid.Row="2" Spacing="6" IsVisible="{Binding ShowAudio}">
+            <Slider x:Name="Seek" Minimum="0" Maximum="1" Value="{Binding Position}" DragCompleted="Seeked"
+                    MinimumTrackColor="{StaticResource Accent}" />
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto,*" ColumnSpacing="10">
+                <Button Grid.Column="1" Style="{StaticResource Icon}" Text="&#x21BA;10" FontSize="16" Command="{Binding BackCommand}" />
+                <Button Grid.Column="2" Text="&#x25B6;" x:Name="Play"
+                        WidthRequest="64" HeightRequest="64" CornerRadius="32" Command="{Binding PlayPauseCommand}" />
+                <Button Grid.Column="3" Style="{StaticResource Icon}" Text="10&#x21BB;" FontSize="16" Command="{Binding ForwardCommand}" />
+            </Grid>
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Label Text="0.5x" Style="{StaticResource Muted}" VerticalOptions="Center" />
+                <Slider Grid.Column="1" Minimum="0.5" Maximum="2" Value="{Binding Speed}" />
+                <Label Grid.Column="2" Text="2x" Style="{StaticResource Muted}" VerticalOptions="Center" />
+            </Grid>
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

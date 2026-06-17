@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:v="clr-namespace:Reader.Views"
+       x:Class="Reader.AppShell"
+       FlyoutBehavior="Disabled"
+       Shell.NavBarIsVisible="False">
+
+    <!-- Single root: the library. Detail pages are pushed via registered routes. -->
+    <ShellContent Route="main" ContentTemplate="{DataTemplate v:MainMenuPage}" />
+</Shell>

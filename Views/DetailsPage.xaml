@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Reader.ViewModels"
+             xmlns:m="clr-namespace:Reader.Models"
+             xmlns:c="clr-namespace:Reader.Controls"
+             x:Class="Reader.Views.DetailsPage"
+             x:DataType="vm:DetailsViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Header: cover + metadata -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Padding="16" ColumnSpacing="14">
+            <Button Style="{StaticResource Icon}" Text="&#x2190;" Clicked="Back"
+                    HorizontalOptions="Start" VerticalOptions="Start" ZIndex="1" />
+            <Border Grid.Column="0" Margin="40,0,0,0" WidthRequest="110" HeightRequest="160"
+                    Style="{StaticResource CardFrame}">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding PickCoverCommand}" />
+                </Border.GestureRecognizers>
+                <Image Source="{Binding Novel.DisplayCover, Converter={StaticResource Cover}}" Aspect="AspectFill" />
+            </Border>
+            <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                <Label Text="{Binding Novel.Title}" Style="{StaticResource Title}" MaxLines="2" />
+                <Label Text="{Binding Novel.Author}" Style="{StaticResource Muted}" />
+                <Label Text="{Binding Novel.EpCount, StringFormat='{0} episodes'}" Style="{StaticResource Muted}" />
+                <Label Text="Tap cover to set a custom image" Style="{StaticResource Muted}" FontSize="11" />
+            </VerticalStackLayout>
+        </Grid>
+
+        <CollectionView Grid.Row="1" x:Name="Grid" ItemsSource="{Binding Episodes}">
+            <CollectionView.Header>
+                <Label Text="{Binding Novel.Desc}" Style="{StaticResource Muted}" Padding="16,0,16,12" MaxLines="6" LineBreakMode="TailTruncation" />
+            </CollectionView.Header>
+            <CollectionView.ItemsLayout>
+                <GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="10" VerticalItemSpacing="10" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="m:Episode">
+                    <c:EpisodeCard>
+                        <c:EpisodeCard.GestureRecognizers>
+                            <TapGestureRecognizer
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:DetailsViewModel}}, Path=OpenCommand}"
+                                CommandParameter="{Binding .}" />
+                        </c:EpisodeCard.GestureRecognizers>
+                    </c:EpisodeCard>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+</ContentPage>

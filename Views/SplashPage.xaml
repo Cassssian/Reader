@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Reader.Views.SplashPage"
+             BackgroundColor="{StaticResource Bg}">
+    <Grid>
+        <!-- Centered logo + title. On desktop a progress bar + version line make it
+             read like an IDE/Photoshop launcher; on mobile only the logo animates. -->
+        <VerticalStackLayout x:Name="Stack" VerticalOptions="Center" HorizontalOptions="Center" Spacing="18" Opacity="0">
+            <Border x:Name="Logo" WidthRequest="96" HeightRequest="96" BackgroundColor="{StaticResource Primary}"
+                    StrokeThickness="0" StrokeShape="RoundRectangle 24" Scale="0.6">
+                <Label Text="R" TextColor="White" FontSize="52" FontFamily="OpenSansSemibold"
+                       HorizontalOptions="Center" VerticalOptions="Center" />
+            </Border>
+            <Label Text="Reader" Style="{StaticResource Title}" FontSize="28" HorizontalOptions="Center" />
+
+            <VerticalStackLayout Spacing="6" WidthRequest="260">
+                <VerticalStackLayout.IsVisible>
+                    <OnIdiom x:TypeArguments="x:Boolean" Desktop="True" Phone="False" Tablet="False" Default="False" />
+                </VerticalStackLayout.IsVisible>
+                <ProgressBar x:Name="Bar" Progress="0" ProgressColor="{StaticResource Accent}" />
+                <Label x:Name="Step" Text="Initializing…" Style="{StaticResource Muted}" HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,47 @@
+using CommunityToolkit.Maui;
+using Microsoft.Extensions.Logging;
+using Reader.Services;
+using Reader.ViewModels;
+using Reader.Views;
+
+namespace Reader;
+
+public static class MauiProgram
+{
+    public static MauiApp CreateMauiApp()
+    {
+        var b = MauiApp.CreateBuilder();
+        b.UseMauiApp<App>()
+            .UseMauiCommunityToolkit()
+            .ConfigureFonts(f =>
+            {
+                f.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                f.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+            });
+
+        // --- Services (singletons hold caches/state; pages/VMs are transient) ---
+        b.Services.AddSingleton<Database>();
+        b.Services.AddSingleton<FirebaseService>();
+        b.Services.AddSingleton<ITtsService>(_ => TtsService.Create());
+        b.Services.AddSingleton<TranslationService>();
+        b.Services.AddSingleton<WebnovelScraper>();
+        b.Services.AddSingleton<SyncService>();
+
+        // --- ViewModels ---
+        b.Services.AddSingleton<MainMenuViewModel>();
+        b.Services.AddTransient<DetailsViewModel>();
+        b.Services.AddTransient<ReaderViewModel>();
+        b.Services.AddTransient<AddNovelViewModel>();
+
+        // --- Pages ---
+        b.Services.AddSingleton<MainMenuPage>();
+        b.Services.AddTransient<DetailsPage>();
+        b.Services.AddTransient<ReaderPage>();
+        b.Services.AddTransient<AddNovelPage>();
+
+#if DEBUG
+        b.Logging.AddDebug();
+#endif
+        return b.Build();
+    }
+}
