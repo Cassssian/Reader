@@ -6,6 +6,7 @@ public partial class ReaderPage : ContentPage
 {
     readonly ReaderViewModel _vm;
     readonly Color _active = (Color)Application.Current!.Resources["Primary"];
+    readonly Color _muted = (Color)Application.Current!.Resources["MutedColor"];
 
     public ReaderPage(ReaderViewModel vm)
     {
@@ -52,7 +53,7 @@ public partial class ReaderPage : ContentPage
         {
             bool on = _vm.Mode == i;
             b[i].BackgroundColor = on ? _active : Colors.Transparent;
-            b[i].TextColor = on ? Colors.White : (Color)Application.Current!.Resources["Muted"];
+            b[i].TextColor = on ? Colors.White : _muted;
         }
     }
 

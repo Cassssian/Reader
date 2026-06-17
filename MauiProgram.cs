@@ -1,4 +1,3 @@
-using CommunityToolkit.Maui;
 using Microsoft.Extensions.Logging;
 using Reader.Services;
 using Reader.ViewModels;
@@ -12,7 +11,6 @@ public static class MauiProgram
     {
         var b = MauiApp.CreateBuilder();
         b.UseMauiApp<App>()
-            .UseMauiCommunityToolkit()
             .ConfigureFonts(f =>
             {
                 f.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");

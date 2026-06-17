@@ -11,6 +11,7 @@
     <Color x:Key="Card">#1C2330</Color>
     <Color x:Key="Text">#E6EDF3</Color>
     <Color x:Key="Muted">#8B949E</Color>
+    <Color x:Key="MutedColor">#8B949E</Color>
 
     <!-- Light palette -->
     <Color x:Key="BgLight">#F5F6FA</Color>
