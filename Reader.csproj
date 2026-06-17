@@ -23,28 +23,26 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- App icon and splash. Splash bg is dark to match the custom animated splash. -->
 		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#0D1117" />
 		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#0D1117" BaseSize="128,128" />
-
 		<MauiImage Include="Resources\Images\*" />
 		<MauiFont Include="Resources\Fonts\*.ttf" />
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Maui.Controls" Version="8.0.*" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.*" />
-		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
-		<PackageReference Include="CommunityToolkit.Maui" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.*" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.*" />
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<PackageReference Include="CommunityToolkit.Maui" Version="10.0.*" />
 		<PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
-		<PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.8" />
-		<PackageReference Include="HtmlAgilityPack" Version="1.11.61" />
+		<!-- 2.1.10+ corrige l'avertissement XA0141 (page size 16 Ko Android 16) -->
+		<PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.10" />
+		<PackageReference Include="HtmlAgilityPack" Version="1.11.67" />
 	</ItemGroup>
 
-	<!-- Windows TTS uses System.Speech (compiled only for the Windows head). -->
 	<ItemGroup Condition="$(TargetFramework.Contains('-windows'))">
-		<PackageReference Include="System.Speech" Version="8.0.0" />
+		<PackageReference Include="System.Speech" Version="10.0.*" />
 	</ItemGroup>
 
 </Project>

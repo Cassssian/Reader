@@ -29,14 +29,14 @@ public partial class TtsService : ITtsService
 
 #if ANDROID
     Android.Speech.Tts.TextToSpeech? _tts;
-    bool _ready;
 
     public async Task Speak(string text, double rate, string lang)
     {
         _tts ??= await Init();
         _tts!.SetSpeechRate((float)rate);
         _tts.SetPitch(0.95f);                       // storyteller: a touch below neutral
-        _tts.SetLanguage(new Java.Util.Locale(lang));
+        // ForLanguageTag remplace new Locale(string), obsolète depuis Android 36.
+        _tts.SetLanguage(Java.Util.Locale.ForLanguageTag(lang));
         IsPlaying = true;
         // QueueFlush replaces anything pending; "u" id ties callbacks to this utterance.
         _tts.Speak(text, Android.Speech.Tts.QueueMode.Flush, null, "u");
@@ -47,7 +47,7 @@ public partial class TtsService : ITtsService
         var tcs = new TaskCompletionSource<Android.Speech.Tts.TextToSpeech>();
         Android.Speech.Tts.TextToSpeech tts = null!;
         tts = new Android.Speech.Tts.TextToSpeech(Android.App.Application.Context,
-            new Listener(s => { _ready = s; tcs.TrySetResult(tts); }));
+            new Listener(() => tcs.TrySetResult(tts)));
         tts.SetOnUtteranceProgressListener(new Progress(RaiseWord, RaiseDone));
         return tcs.Task;
     }
@@ -56,14 +56,15 @@ public partial class TtsService : ITtsService
     public void Resume() { }
     public void Stop() { _tts?.Stop(); IsPlaying = false; }
 
-    class Listener(Action<bool> cb) : Java.Lang.Object, Android.Speech.Tts.TextToSpeech.IOnInitListener
-    { public void OnInit(Android.Speech.Tts.OperationResult s) => cb(s == Android.Speech.Tts.OperationResult.Success); }
+    class Listener(Action cb) : Java.Lang.Object, Android.Speech.Tts.TextToSpeech.IOnInitListener
+    { public void OnInit(Android.Speech.Tts.OperationResult s) => cb(); }
 
     class Progress(Action<int, int> word, Action done) : Android.Speech.Tts.UtteranceProgressListener
     {
         public override void OnStart(string? id) { }
         public override void OnDone(string? id) => done();
-        public override void OnError(string? id) => done();
+        // OnError(string) est obsolète depuis Android 21 mais doit rester pour la compat API 24+.
+        [Obsolete] public override void OnError(string? id) => done();
         public override void OnRangeStart(string? id, int start, int end, int frame) => word(start, end - start);
     }
 #elif IOS || MACCATALYST

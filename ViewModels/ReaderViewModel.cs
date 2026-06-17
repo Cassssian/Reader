@@ -42,11 +42,20 @@ public partial class ReaderViewModel : BaseViewModel
     [ObservableProperty] double speed;
 
     public (string Code, string Name)[] Languages => TranslationService.Languages;
-    public bool ShowText => Mode != 0;               // text visible in audio+text and text-only
-    public bool ShowAudio => Mode != 2;              // controls/visualizer hidden in text-only
-    partial void OnModeChanged(int v) { OnPropertyChanged(nameof(ShowText)); OnPropertyChanged(nameof(ShowAudio)); }
-
-    partial void OnEpChanged(int v) => _ = Load();
+    public bool ShowText => Mode != 0;
+    public bool ShowAudio => Mode != 2;
+    // Le générateur CommunityToolkit impose "value" comme nom de paramètre dans les partiels.
+    partial void OnModeChanged(int value) { OnPropertyChanged(nameof(ShowText)); OnPropertyChanged(nameof(ShowAudio)); }
+    partial void OnEpChanged(int value) => _ = Load();
+    partial void OnSpeedChanged(double value)
+    {
+        if (Playing) { _tts.Stop(); _ = SpeakFrom(_base); }
+        _ = _sync.SaveReaderPrefs(Lang, value, Mode);
+    }
+    partial void OnModeChanging(int oldValue, int newValue)
+    {
+        if (newValue == 2 && Playing) { _tts.Stop(); Playing = false; }
+    }
 
     async Task Load()
     {
@@ -94,16 +103,6 @@ public partial class ReaderViewModel : BaseViewModel
         if (was) await PlayPause();
     }
 
-    partial void OnSpeedChanged(double v)
-    {
-        if (Playing) { _tts.Stop(); _ = SpeakFrom(_base); }   // restart at new rate
-        _ = _sync.SaveReaderPrefs(Lang, v, Mode);
-    }
-
-    partial void OnModeChanging(int oldVal, int newVal)
-    {
-        if (newVal == 2 && Playing) { _tts.Stop(); Playing = false; }
-    }
 
     // Seekbar scrub: jump to a fraction of the text and resume from there.
     public void SeekTo(double frac)
