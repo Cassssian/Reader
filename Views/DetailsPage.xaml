@@ -22,8 +22,12 @@
             <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
                 <Label Text="{Binding Novel.Title}" Style="{StaticResource Title}" MaxLines="2" />
                 <Label Text="{Binding Novel.Author}" Style="{StaticResource Muted}" />
-                <Label Text="{Binding Novel.EpCount, StringFormat='{0} episodes'}" Style="{StaticResource Muted}" />
-                <Label Text="Tap cover to set a custom image" Style="{StaticResource Muted}" FontSize="11" />
+                <Label Text="{Binding Novel.EpCount, StringFormat='{0} chapitres'}" Style="{StaticResource Muted}" />
+                <ProgressBar Progress="{Binding Novel.Progress}" ProgressColor="{StaticResource Accent}" />
+                <!-- Reprend la lecture là où on s'était arrêté -->
+                <Button Text="{Binding ContinueLabel}" IsVisible="{Binding CanContinue}"
+                        Command="{Binding ContinueCommand}" HorizontalOptions="Start" Margin="0,4,0,0" />
+                <Label Text="Touchez la couverture pour la personnaliser" Style="{StaticResource Muted}" FontSize="11" />
             </VerticalStackLayout>
         </Grid>
 

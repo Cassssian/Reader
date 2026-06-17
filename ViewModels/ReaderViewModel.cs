@@ -15,18 +15,24 @@ public partial class ReaderViewModel : BaseViewModel
     readonly WebnovelScraper _scraper;
     readonly SyncService _sync;
 
-    // ~chars spoken per second at 1x; used to translate the 10s skip + seekbar into offsets.
-    const double Cps = 15;
+    // Les moteurs TTS natifs rejettent silencieusement les textes trop longs
+    // (Android ~4000 car). On découpe donc en blocs et on les lit en séquence.
+    const int ChunkSize = 2500;
+    const double Cps = 15;   // ~caractères/seconde à 1x → conversion du skip 10s
 
-    string _spoken = "";    // the exact text handed to the TTS engine (already translated)
-    int _base;              // absolute char offset where the current utterance starts
+    List<string> _chunks = new();   // blocs successifs ; concaténés == Text
+    List<int> _starts = new();      // offset absolu de chaque bloc dans Text
+    int _ci;                        // index du bloc en cours
+    int _abs;                       // offset absolu du dernier mot prononcé
+    int _uStart;                    // offset absolu où commence l'énoncé TTS courant
+    bool _continuePlay;             // enchaîne automatiquement le chapitre suivant
 
     public ReaderViewModel(Database db, ITtsService tts, TranslationService tr, WebnovelScraper scraper, SyncService sync)
     {
         (_db, _tts, _tr, _scraper, _sync) = (db, tts, tr, scraper, sync);
         Lang = sync.Settings.Lang; Speed = sync.Settings.Speed; Mode = sync.Settings.Mode;
         _tts.Word += OnWord;
-        _tts.Done += OnDone;
+        _tts.Done += OnChunkDone;
     }
 
     [ObservableProperty] string novelId = "";
@@ -34,22 +40,23 @@ public partial class ReaderViewModel : BaseViewModel
     [ObservableProperty] Episode? episode;
     [ObservableProperty] string text = "";
     [ObservableProperty] bool playing;
-    [ObservableProperty] double position;           // 0..1 for the seekbar
-    [ObservableProperty] int hlStart;                // current word offset within Text
+    [ObservableProperty] bool translating;          // overlay de chargement
+    [ObservableProperty] double position;
+    [ObservableProperty] int hlStart;
     [ObservableProperty] int hlLen;
-    [ObservableProperty] int mode;                   // 0 audio · 1 audio+text · 2 text
+    [ObservableProperty] int mode;
     [ObservableProperty] string lang;
     [ObservableProperty] double speed;
 
     public (string Code, string Name)[] Languages => TranslationService.Languages;
     public bool ShowText => Mode != 0;
     public bool ShowAudio => Mode != 2;
-    // Le générateur CommunityToolkit impose "value" comme nom de paramètre dans les partiels.
+
     partial void OnModeChanged(int value) { OnPropertyChanged(nameof(ShowText)); OnPropertyChanged(nameof(ShowAudio)); }
     partial void OnEpChanged(int value) => _ = Load();
     partial void OnSpeedChanged(double value)
     {
-        if (Playing) { _tts.Stop(); _ = SpeakFrom(_base); }
+        if (Playing) { _tts.Stop(); StartAt(_abs); }   // relance au nouveau débit
         _ = _sync.SaveReaderPrefs(Lang, value, Mode);
     }
     partial void OnModeChanging(int oldValue, int newValue)
@@ -63,22 +70,55 @@ public partial class ReaderViewModel : BaseViewModel
         Episode = await _db.EpisodeAt(NovelId, Ep);
         if (Episode is null) { Busy = false; return; }
 
-        // Lazy fetch + cache the chapter body for offline re-reads.
+        // Récupère + cache le texte du chapitre (lecture hors ligne ensuite).
         if (!Episode.Cached)
         {
-            Episode.Content = await _scraper.FetchContent(Episode.Url);
-            await _db.Save(Episode);
+            try { Episode.Content = await _scraper.FetchContent(Episode.Url); }
+            catch { /* hors ligne */ }
+            if (Episode.Cached) await _db.Save(Episode);
         }
         await Render();
+        // Reprend là où on s'était arrêté dans le chapitre.
+        _abs = (int)(Episode.Progress * Math.Max(0, Text.Length));
+        Position = Episode.Progress;
         Busy = false;
+
+        // Enchaînement automatique depuis le chapitre précédent.
+        if (_continuePlay) { _continuePlay = false; StartAt(0); }
     }
 
-    // Translate (cached) then expose for display + speech.
+    // Traduit (avec overlay) puis prépare l'affichage + le découpage TTS.
     async Task Render()
     {
         var src = Episode?.Content ?? "";
-        _spoken = await _tr.Translate(src, Lang);
-        Text = _spoken;
+        if (string.IsNullOrWhiteSpace(src)) { Text = "Chapitre indisponible (impossible de récupérer le texte)."; Prepare(); return; }
+
+        Translating = true;
+        try { Text = await _tr.Translate(src, Lang); }
+        catch { Text = src; }
+        Translating = false;
+        Prepare();
+    }
+
+    // Découpe Text en blocs (sans perdre de caractères → les offsets de surlignage
+    // correspondent au Text affiché).
+    void Prepare()
+    {
+        _chunks = new(); _starts = new();
+        int i = 0;
+        while (i < Text.Length)
+        {
+            int len = Math.Min(ChunkSize, Text.Length - i);
+            int end = i + len;
+            if (end < Text.Length)
+            {
+                int br = Text.LastIndexOfAny(new[] { '.', '!', '?', '\n', ' ' }, end - 1, len);
+                if (br > i) end = br + 1;
+            }
+            _starts.Add(i);
+            _chunks.Add(Text[i..end]);
+            i = end;
+        }
         ResetHl();
     }
 
@@ -87,7 +127,7 @@ public partial class ReaderViewModel : BaseViewModel
     async Task PlayPause()
     {
         if (Playing) { _tts.Pause(); Playing = false; await SaveProgress(); }
-        else { Playing = true; await SpeakFrom(_base); }
+        else if (_chunks.Count > 0) StartAt(_abs);
     }
 
     [RelayCommand] void Forward() => Skip(10);
@@ -96,57 +136,73 @@ public partial class ReaderViewModel : BaseViewModel
     [RelayCommand]
     async Task ChangeLang(string code)
     {
+        if (code == Lang) return;
         Lang = code;
         var was = Playing; _tts.Stop(); Playing = false;
         await Render();
         await _sync.SaveReaderPrefs(Lang, Speed, Mode);
-        if (was) await PlayPause();
+        if (was) StartAt(_abs);
     }
 
-
-    // Seekbar scrub: jump to a fraction of the text and resume from there.
-    public void SeekTo(double frac)
-    {
-        _tts.Stop();
-        _ = SpeakFrom((int)(Math.Clamp(frac, 0, 1) * _spoken.Length));
-    }
+    public void SeekTo(double frac) => StartAt((int)(Math.Clamp(frac, 0, 1) * Text.Length));
 
     void Skip(int seconds)
     {
-        var delta = (int)(seconds * Cps * Speed);
-        _tts.Stop();
-        _ = SpeakFrom(Math.Clamp(_base + delta, 0, Math.Max(0, _spoken.Length - 1)));
+        var target = Math.Clamp(_abs + (int)(seconds * Cps * Speed), 0, Math.Max(0, Text.Length - 1));
+        StartAt(target);
     }
 
-    Task SpeakFrom(int offset)
+    // Démarre/relance la lecture à un offset absolu : trouve le bon bloc et parle
+    // depuis l'offset interne.
+    void StartAt(int abs)
     {
-        _base = Math.Clamp(offset, 0, Math.Max(0, _spoken.Length));
+        _tts.Stop();
+        if (Mode == 2 || _chunks.Count == 0) return;
+        abs = Math.Clamp(abs, 0, Math.Max(0, Text.Length - 1));
+        _ci = ChunkOf(abs);
+        _abs = _uStart = abs;
+        int within = abs - _starts[_ci];
         Playing = true;
-        return Mode == 2 ? Task.CompletedTask : _tts.Speak(_spoken[_base..], Speed, Lang);
+        _ = _tts.Speak(_chunks[_ci][within..], Speed, Lang);
     }
 
-    // --- engine callbacks ---
+    int ChunkOf(int abs)
+    {
+        for (int k = _starts.Count - 1; k >= 0; k--)
+            if (abs >= _starts[k]) return k;
+        return 0;
+    }
+
+    // --- callbacks moteur ---
     void OnWord(int start, int len)
     {
-        var abs = _base + start;                     // engine offsets are relative to the substring
-        HlStart = abs; HlLen = len;
-        if (_spoken.Length > 0) Position = (double)abs / _spoken.Length;
+        _abs = _uStart + start;          // offsets du moteur relatifs à l'énoncé envoyé
+        HlStart = _abs; HlLen = len;
+        if (Text.Length > 0) Position = (double)_abs / Text.Length;
     }
 
-    void OnDone()
+    // Un bloc est terminé → bloc suivant, sinon chapitre suivant.
+    void OnChunkDone()
     {
-        Playing = false;
-        _ = NextOrFinish();
+        if (!Playing) return;
+        if (_ci + 1 < _chunks.Count)
+        {
+            _ci++;
+            _abs = _uStart = _starts[_ci];   // énoncé suivant = bloc entier
+            _ = _tts.Speak(_chunks[_ci], Speed, Lang);
+        }
+        else { _ = NextEpisode(); }
     }
 
-    async Task NextOrFinish()
+    async Task NextEpisode()
     {
         await SaveProgress(done: true);
         var next = await _db.EpisodeAt(NovelId, Ep + 1);
-        if (next is not null) { Ep += 1; }           // auto-advance to next chapter
+        if (next is not null) { _continuePlay = true; Ep += 1; }  // OnEpChanged → Load → auto-play
+        else Playing = false;
     }
 
-    void ResetHl() { HlStart = HlLen = 0; Position = 0; _base = 0; }
+    void ResetHl() { HlStart = HlLen = 0; }
 
     async Task SaveProgress(bool done = false)
     {
@@ -166,9 +222,8 @@ public partial class ReaderViewModel : BaseViewModel
     {
         _tts.Stop();
         Playing = false;
-        // Detach so this transient VM isn't kept alive by the singleton TTS service.
         _tts.Word -= OnWord;
-        _tts.Done -= OnDone;
+        _tts.Done -= OnChunkDone;
         _ = SaveProgress();
     }
 }

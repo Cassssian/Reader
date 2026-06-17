@@ -6,22 +6,30 @@
              x:Class="Reader.Views.ReaderPage"
              x:DataType="vm:ReaderViewModel">
 
-    <Grid RowDefinitions="Auto,*,Auto" Padding="16,12">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="16,12" RowSpacing="10">
 
-        <!-- Top bar: back · mode segmented · language dropdown -->
+        <!-- Rangée 1 : retour + titre + langue (plus de chevauchement) -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
             <Button Style="{StaticResource Icon}" Text="&#x2190;" Clicked="Back" />
-            <HorizontalStackLayout Grid.Column="1" HorizontalOptions="Center" Spacing="0">
-                <Button x:Name="M0" Text="Audio" Style="{StaticResource Icon}" WidthRequest="70" Clicked="Mode" />
-                <Button x:Name="M1" Text="A+Text" Style="{StaticResource Icon}" WidthRequest="70" Clicked="Mode" />
-                <Button x:Name="M2" Text="Text" Style="{StaticResource Icon}" WidthRequest="70" Clicked="Mode" />
-            </HorizontalStackLayout>
-            <Picker Grid.Column="2" x:Name="Lang" Title="Lang" WidthRequest="120"
-                    SelectedIndexChanged="LangPick" />
+            <Label Grid.Column="1" Text="{Binding Episode.Title}" VerticalOptions="Center"
+                   MaxLines="1" LineBreakMode="TailTruncation" FontSize="14" />
+            <Border Grid.Column="2" Style="{StaticResource CardFrame}" Padding="8,0" HeightRequest="40">
+                <Picker x:Name="Lang" Title="Lang" SelectedIndexChanged="LangPick"
+                        WidthRequest="110" FontSize="13" />
+            </Border>
         </Grid>
 
-        <!-- Content area: scrolling highlighted text (modes 1 & 2) -->
-        <ScrollView Grid.Row="1" x:Name="Scroll" Margin="0,12" IsVisible="{Binding ShowText}">
+        <!-- Rangée 2 : sélecteur de mode segmenté pleine largeur -->
+        <Border Grid.Row="1" Style="{StaticResource CardFrame}" Padding="3" HeightRequest="44">
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="3">
+                <Button x:Name="M0" Text="🎧 Audio" FontSize="13" Clicked="Mode" CornerRadius="9" />
+                <Button x:Name="M1" Grid.Column="1" Text="📖 Audio+Texte" FontSize="13" Clicked="Mode" CornerRadius="9" />
+                <Button x:Name="M2" Grid.Column="2" Text="📄 Texte" FontSize="13" Clicked="Mode" CornerRadius="9" />
+            </Grid>
+        </Border>
+
+        <!-- Texte défilant avec surlignage (modes 1 & 2) -->
+        <ScrollView Grid.Row="2" x:Name="Scroll" IsVisible="{Binding ShowText}">
             <Label x:Name="Body" LineHeight="1.6" FontSize="17">
                 <Label.FormattedText>
                     <MultiBinding Converter="{StaticResource Highlighter}">
@@ -33,28 +41,37 @@
             </Label>
         </ScrollView>
 
-        <!-- Audio-only: centered waveform visualizer -->
-        <VerticalStackLayout Grid.Row="1" VerticalOptions="Center" Spacing="20"
+        <!-- Mode audio seul : visualiseur centré -->
+        <VerticalStackLayout Grid.Row="2" VerticalOptions="Center" Spacing="20"
                              IsVisible="{Binding ShowText, Converter={StaticResource Not}}">
             <Label Text="{Binding Episode.Title}" Style="{StaticResource Title}" HorizontalTextAlignment="Center" />
             <c:AudioWaveView Active="{Binding Playing}" HeightRequest="90" />
         </VerticalStackLayout>
 
-        <!-- Transport: seekbar + skip/play + speed -->
-        <VerticalStackLayout Grid.Row="2" Spacing="6" IsVisible="{Binding ShowAudio}">
+        <!-- Transport : seekbar + skip/play + vitesse -->
+        <VerticalStackLayout Grid.Row="3" Spacing="6" IsVisible="{Binding ShowAudio}">
             <Slider x:Name="Seek" Minimum="0" Maximum="1" Value="{Binding Position}" DragCompleted="Seeked"
                     MinimumTrackColor="{StaticResource Accent}" />
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto,*" ColumnSpacing="10">
-                <Button Grid.Column="1" Style="{StaticResource Icon}" Text="&#x21BA;10" FontSize="16" Command="{Binding BackCommand}" />
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto,*" ColumnSpacing="14">
+                <Button Grid.Column="1" Style="{StaticResource Icon}" Text="&#x21BA;10" FontSize="15" Command="{Binding BackCommand}" />
                 <Button Grid.Column="2" Text="&#x25B6;" x:Name="Play"
                         WidthRequest="64" HeightRequest="64" CornerRadius="32" Command="{Binding PlayPauseCommand}" />
-                <Button Grid.Column="3" Style="{StaticResource Icon}" Text="10&#x21BB;" FontSize="16" Command="{Binding ForwardCommand}" />
+                <Button Grid.Column="3" Style="{StaticResource Icon}" Text="10&#x21BB;" FontSize="15" Command="{Binding ForwardCommand}" />
             </Grid>
             <Grid ColumnDefinitions="Auto,*,Auto">
-                <Label Text="0.5x" Style="{StaticResource Muted}" VerticalOptions="Center" />
-                <Slider Grid.Column="1" Minimum="0.5" Maximum="2" Value="{Binding Speed}" />
-                <Label Grid.Column="2" Text="2x" Style="{StaticResource Muted}" VerticalOptions="Center" />
+                <Label x:Name="SpeedLbl" Style="{StaticResource Muted}" VerticalOptions="Center" />
+                <Slider x:Name="SpeedSlider" Grid.Column="1" Minimum="0.5" Maximum="2"
+                        ValueChanged="SpeedChanged" DragCompleted="SpeedSet" />
+                <Label Text="2x" Style="{StaticResource Muted}" VerticalOptions="Center" />
             </Grid>
         </VerticalStackLayout>
+
+        <!-- Overlay de chargement (traduction / récupération) -->
+        <Grid Grid.RowSpan="4" BackgroundColor="#CC0D1117" IsVisible="{Binding Translating}">
+            <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="14">
+                <ActivityIndicator IsRunning="{Binding Translating}" WidthRequest="48" HeightRequest="48" />
+                <Label Text="Traduction en cours…" TextColor="White" HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </Grid>
     </Grid>
 </ContentPage>

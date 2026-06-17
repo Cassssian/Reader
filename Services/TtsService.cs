@@ -114,7 +114,10 @@ public partial class TtsService : ITtsService
 
     void OnProgress(object? s, System.Speech.Synthesis.SpeakProgressEventArgs e)
         => RaiseWord(e.CharacterPosition, e.CharacterCount);
-    void OnDone(object? s, System.Speech.Synthesis.SpeakCompletedEventArgs e) => RaiseDone();
+    // Ne pas signaler "terminé" sur un Stop() (Cancelled) → éviterait un faux
+    // enchaînement de bloc/chapitre.
+    void OnDone(object? s, System.Speech.Synthesis.SpeakCompletedEventArgs e)
+    { if (!e.Cancelled) RaiseDone(); }
 
     public void Pause() { _syn.Pause(); IsPlaying = false; }
     public void Resume() { _syn.Resume(); IsPlaying = true; }

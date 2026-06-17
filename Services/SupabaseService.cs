@@ -21,26 +21,27 @@ public class SupabaseService
     public string? Uid { get; private set; }
     public bool SignedIn => AccessToken is not null;
 
-    // --- AUTH : Google OAuth via Supabase (gratuit) ---
+    // --- AUTH : Google OAuth via Supabase (flux implicite) ---
+    // Supabase renvoie l'access_token directement dans le fragment de l'URL de
+    // redirection (#access_token=...). WebAuthenticator l'expose via result.AccessToken.
     public async Task<bool> SignIn()
     {
         try
         {
             var redirect = new Uri("readerapp://auth");
-            // Supabase retourne un URL d'autorisation Google ; WebAuthenticator le gère.
-            var authUrl = new Uri($"{Url}/auth/v1/authorize?provider=google&redirect_to={redirect}");
+            var authUrl = new Uri($"{Url}/auth/v1/authorize?provider=google" +
+                                  $"&redirect_to={Uri.EscapeDataString(redirect.ToString())}");
             var result = await WebAuthenticator.Default.AuthenticateAsync(authUrl, redirect);
 
-            var code = result.Properties.GetValueOrDefault("code")
-                    ?? result.Properties.GetValueOrDefault("access_token");
-            if (code is null) return false;
-
-            // Échange le code contre une session (access_token + user id).
-            var resp = await PostAuth("/auth/v1/token?grant_type=pkce", new { auth_code = code });
-            AccessToken = resp.GetProperty("access_token").GetString();
-            Uid = resp.GetProperty("user").GetProperty("id").GetString();
+            AccessToken = result.AccessToken
+                       ?? result.Properties.GetValueOrDefault("access_token");
+            if (AccessToken is null) return false;
             SetAuth();
-            return true;
+
+            // Récupère l'id utilisateur via l'endpoint /user (Bearer + apikey).
+            var user = await _http.GetFromJsonAsync<JsonElement>("/auth/v1/user");
+            Uid = user.GetProperty("id").GetString();
+            return Uid is not null;
         }
         catch { return false; }
     }
@@ -136,20 +137,6 @@ public class SupabaseService
         _http.DefaultRequestHeaders.Add("apikey", AnonKey);
         _http.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", AccessToken);
-    }
-
-    async Task<JsonElement> PostAuth(string path, object body)
-    {
-        var req = new HttpRequestMessage(HttpMethod.Post, path)
-        {
-            Content = new StringContent(
-                JsonSerializer.Serialize(body),
-                System.Text.Encoding.UTF8, "application/json")
-        };
-        req.Headers.Add("apikey", AnonKey);
-        var r = await _http.SendAsync(req);
-        r.EnsureSuccessStatusCode();
-        return await r.Content.ReadFromJsonAsync<JsonElement>();
     }
 
     static Webnovel Row(JsonElement j) => new()

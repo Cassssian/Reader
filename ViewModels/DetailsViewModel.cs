@@ -11,7 +11,10 @@ public partial class DetailsViewModel(Database db, SyncService sync, SupabaseSer
 {
     [ObservableProperty] string id = "";
     [ObservableProperty] Webnovel? novel;
-    public ObservableCollection<Episode> Episodes { get; } = new();
+    [ObservableProperty] bool canContinue;
+    [ObservableProperty] string continueLabel = "";
+    // Assignée en bloc (1 seule notification) → pas de gel sur les longues listes.
+    [ObservableProperty] ObservableCollection<Episode> episodes = new();
 
     partial void OnIdChanged(string value) => _ = Load();
 
@@ -19,8 +22,13 @@ public partial class DetailsViewModel(Database db, SyncService sync, SupabaseSer
     {
         Busy = true;
         Novel = await db.Novel(Id);
-        Episodes.Clear();
-        foreach (var e in await db.Episodes(Id)) Episodes.Add(e);
+        var eps = await db.Episodes(Id);
+        Episodes = new ObservableCollection<Episode>(eps);
+
+        // Bouton "Continuer" si une lecture a déjà commencé.
+        CanContinue = Novel is not null && (Novel.Progress > 0 || Novel.LastEp > 0);
+        if (CanContinue && Novel is not null)
+            ContinueLabel = $"▶  Continuer · chapitre {Novel.LastEp + 1}";
         Busy = false;
     }
 
@@ -28,8 +36,14 @@ public partial class DetailsViewModel(Database db, SyncService sync, SupabaseSer
     async Task Open(Episode e) =>
         await Shell.Current.GoToAsync($"reader?id={Novel!.Id}&ep={e.Index}");
 
-    // Couverture personnalisée : sauvegardée localement et, si connecté,
-    // uploadée vers Supabase Storage (bucket "covers", public, gratuit).
+    [RelayCommand]
+    async Task Continue()
+    {
+        if (Novel is null) return;
+        await Shell.Current.GoToAsync($"reader?id={Novel.Id}&ep={Novel.LastEp}");
+    }
+
+    // Couverture perso : copie locale + upload Supabase si connecté.
     [RelayCommand]
     async Task PickCover()
     {
@@ -37,22 +51,19 @@ public partial class DetailsViewModel(Database db, SyncService sync, SupabaseSer
         var file = await MediaPicker.Default.PickPhotoAsync();
         if (file is null) return;
 
-        // Copie locale (utilisée même hors ligne).
-        var localPath = Path.Combine(FileSystem.AppDataDirectory, "covers");
-        Directory.CreateDirectory(localPath);
-        var dest = Path.Combine(localPath, $"{Novel.Id}.jpg");
+        var dir = Path.Combine(FileSystem.AppDataDirectory, "covers");
+        Directory.CreateDirectory(dir);
+        var dest = Path.Combine(dir, $"{Novel.Id}.jpg");
         using (var src = await file.OpenReadAsync())
         using (var dst = File.OpenWrite(dest))
             await src.CopyToAsync(dst);
+        Novel.CustomCover = dest;
 
-        Novel.CustomCover = dest;   // chemin local par défaut
-
-        // Si connecté → upload Supabase Storage et on stocke l'URL publique.
         if (supa.SignedIn)
         {
             using var stream = await file.OpenReadAsync();
-            var remoteUrl = await supa.UploadCover(Novel.Id, stream);
-            if (!string.IsNullOrEmpty(remoteUrl)) Novel.CustomCover = remoteUrl;
+            var remote = await supa.UploadCover(Novel.Id, stream);
+            if (!string.IsNullOrEmpty(remote)) Novel.CustomCover = remote;
         }
 
         await sync.Push(Novel);
