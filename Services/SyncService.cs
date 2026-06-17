@@ -2,56 +2,62 @@ using Reader.Models;
 
 namespace Reader.Services;
 
-// Reconciles local SQLite <-> Firestore using last-write-wins on the Updated timestamp.
-// Theme/settings live in Preferences for instant startup and mirror to Firestore.
-public class SyncService(Database db, FirebaseService fb)
+// Local-first : SQLite est la source de vérité.
+// La sync Supabase est optionnelle (gratuite) et ne bloque jamais le démarrage.
+public class SyncService(Database db, SupabaseService supa)
 {
     public UserSettings Settings { get; private set; } = Load();
 
     public async Task InitAsync()
     {
-        // Silent re-auth would go here; for now sync only runs once signed in.
-        if (fb.SignedIn) await Pull();
+        if (supa.SignedIn) _ = Pull();   // fire-and-forget, non bloquant
     }
 
     public async Task<bool> SignIn()
     {
-        if (!await fb.SignIn()) return false;
+        if (!await supa.SignIn()) return false;
         await Pull();
         return true;
     }
 
-    // Merge remote into local (newer wins), then push anything still dirty.
+    // Merge remote → local (newer wins), puis pousse ce qui est dirty.
     public async Task Pull()
     {
-        var remote = await fb.PullNovels();
-        foreach (var r in remote)
+        try
         {
-            var local = await db.Novel(r.Id);
-            if (local is null || r.Updated > local.Updated) await db.Save(r);
-        }
-        foreach (var n in await db.Novels())
-            if (n.Dirty) { await fb.PushNovel(n); n.Dirty = false; await db.Save(n); }
+            var remote = await supa.PullNovels();
+            foreach (var r in remote)
+            {
+                var local = await db.Novel(r.Id);
+                if (local is null || r.Updated > local.Updated) await db.Save(r);
+            }
+            foreach (var n in await db.Novels())
+                if (n.Dirty) { await supa.PushNovel(n); n.Dirty = false; await db.Save(n); }
 
-        var s = await fb.PullSettings();
-        if (s is not null && s.Updated > Settings.Updated) Apply(s);
+            var s = await supa.PullSettings();
+            if (s is not null && s.Updated > Settings.Updated) Apply(s);
+        }
+        catch { /* hors ligne → aucun impact */ }
     }
 
     public async Task Push(Webnovel n)
     {
         n.Dirty = true;
         await db.Save(n);
-        if (fb.SignedIn) { await fb.PushNovel(n); n.Dirty = false; await db.Save(n); }
+        if (supa.SignedIn)
+        {
+            try { await supa.PushNovel(n); n.Dirty = false; await db.Save(n); }
+            catch { /* sera réessayé au prochain Pull */ }
+        }
     }
 
-    // --- Settings / theme ---
     public async Task SetTheme(bool dark)
     {
         Settings.Dark = dark;
         Bump();
         Application.Current!.UserAppTheme = dark ? AppTheme.Dark : AppTheme.Light;
         Preferences.Set("dark", dark);
-        if (fb.SignedIn) await fb.PushSettings(Settings);
+        if (supa.SignedIn) _ = supa.PushSettings(Settings);
     }
 
     public async Task SaveReaderPrefs(string lang, double speed, int mode)
@@ -59,7 +65,7 @@ public class SyncService(Database db, FirebaseService fb)
         (Settings.Lang, Settings.Speed, Settings.Mode) = (lang, speed, mode);
         Bump();
         Preferences.Set("lang", lang); Preferences.Set("speed", speed); Preferences.Set("mode", mode);
-        if (fb.SignedIn) await fb.PushSettings(Settings);
+        if (supa.SignedIn) _ = supa.PushSettings(Settings);
     }
 
     void Apply(UserSettings s)
@@ -74,9 +80,9 @@ public class SyncService(Database db, FirebaseService fb)
 
     static UserSettings Load() => new()
     {
-        Dark = Preferences.Get("dark", true),
-        Lang = Preferences.Get("lang", "en"),
+        Dark  = Preferences.Get("dark", true),
+        Lang  = Preferences.Get("lang", "en"),
         Speed = Preferences.Get("speed", 1.0),
-        Mode = Preferences.Get("mode", 1)
+        Mode  = Preferences.Get("mode", 1)
     };
 }

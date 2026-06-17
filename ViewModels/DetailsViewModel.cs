@@ -7,7 +7,7 @@ using Reader.Services;
 namespace Reader.ViewModels;
 
 [QueryProperty(nameof(Id), "id")]
-public partial class DetailsViewModel(Database db, FirebaseService fb, SyncService sync) : BaseViewModel
+public partial class DetailsViewModel(Database db, SyncService sync, SupabaseService supa) : BaseViewModel
 {
     [ObservableProperty] string id = "";
     [ObservableProperty] Webnovel? novel;
@@ -28,17 +28,33 @@ public partial class DetailsViewModel(Database db, FirebaseService fb, SyncServi
     async Task Open(Episode e) =>
         await Shell.Current.GoToAsync($"reader?id={Novel!.Id}&ep={e.Index}");
 
-    // Pick an image and push it to Firebase Storage as the custom cover.
+    // Couverture personnalisée : sauvegardée localement et, si connecté,
+    // uploadée vers Supabase Storage (bucket "covers", public, gratuit).
     [RelayCommand]
     async Task PickCover()
     {
         if (Novel is null) return;
         var file = await MediaPicker.Default.PickPhotoAsync();
         if (file is null) return;
-        using var s = await file.OpenReadAsync();
-        var url = await fb.UploadCover(Novel.Id, s);
-        if (string.IsNullOrEmpty(url)) return;
-        Novel.CustomCover = url;
+
+        // Copie locale (utilisée même hors ligne).
+        var localPath = Path.Combine(FileSystem.AppDataDirectory, "covers");
+        Directory.CreateDirectory(localPath);
+        var dest = Path.Combine(localPath, $"{Novel.Id}.jpg");
+        using (var src = await file.OpenReadAsync())
+        using (var dst = File.OpenWrite(dest))
+            await src.CopyToAsync(dst);
+
+        Novel.CustomCover = dest;   // chemin local par défaut
+
+        // Si connecté → upload Supabase Storage et on stocke l'URL publique.
+        if (supa.SignedIn)
+        {
+            using var stream = await file.OpenReadAsync();
+            var remoteUrl = await supa.UploadCover(Novel.Id, stream);
+            if (!string.IsNullOrEmpty(remoteUrl)) Novel.CustomCover = remoteUrl;
+        }
+
         await sync.Push(Novel);
         OnPropertyChanged(nameof(Novel));
     }

@@ -8,9 +8,13 @@ public class CoverConverter : IValueConverter
     public object Convert(object? v, Type t, object? p, CultureInfo c)
     {
         var s = v as string;
-        return string.IsNullOrWhiteSpace(s) || !Uri.TryCreate(s, UriKind.Absolute, out var uri)
-            ? ImageSource.FromFile("placeholder.png")
-            : ImageSource.FromUri(uri);
+        if (string.IsNullOrWhiteSpace(s)) return ImageSource.FromFile("placeholder.png");
+        // Chemin local (couverture personnalisée sans connexion).
+        if (File.Exists(s)) return ImageSource.FromFile(s);
+        // URL distante (Supabase Storage ou couverture scraped).
+        return Uri.TryCreate(s, UriKind.Absolute, out var uri)
+            ? ImageSource.FromUri(uri)
+            : ImageSource.FromFile("placeholder.png");
     }
     public object ConvertBack(object? v, Type t, object? p, CultureInfo c) => throw new NotImplementedException();
 }

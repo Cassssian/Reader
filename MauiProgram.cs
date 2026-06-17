@@ -19,11 +19,11 @@ public static class MauiProgram
                 f.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        // --- Services (singletons hold caches/state; pages/VMs are transient) ---
+        // --- Services (100 % gratuits) ---
         b.Services.AddSingleton<Database>();
-        b.Services.AddSingleton<FirebaseService>();
-        b.Services.AddSingleton<ITtsService>(_ => TtsService.Create());
-        b.Services.AddSingleton<TranslationService>();
+        b.Services.AddSingleton<SupabaseService>();          // sync cloud optionnelle — free tier
+        b.Services.AddSingleton<ITtsService>(_ => TtsService.Create());  // APIs natives
+        b.Services.AddSingleton<TranslationService>();       // MyMemory — sans clé, sans CB
         b.Services.AddSingleton<WebnovelScraper>();
         b.Services.AddSingleton<SyncService>();
 

@@ -6,13 +6,13 @@ using Reader.Services;
 
 namespace Reader.ViewModels;
 
-public partial class MainMenuViewModel(Database db, SyncService sync, FirebaseService fb) : BaseViewModel
+public partial class MainMenuViewModel(Database db, SyncService sync, SupabaseService supa) : BaseViewModel
 {
     public ObservableCollection<Webnovel> Novels { get; } = new();
 
     [ObservableProperty] bool empty;
     [ObservableProperty] bool dark = sync.Settings.Dark;
-    [ObservableProperty] bool signedIn = fb.SignedIn;
+    [ObservableProperty] bool signedIn = supa.SignedIn;
 
     public async Task Load()
     {
@@ -24,8 +24,7 @@ public partial class MainMenuViewModel(Database db, SyncService sync, FirebaseSe
     }
 
     [RelayCommand]
-    async Task Open(Webnovel n) =>
-        await Shell.Current.GoToAsync($"details?id={n.Id}");
+    async Task Open(Webnovel n) => await Shell.Current.GoToAsync($"details?id={n.Id}");
 
     [RelayCommand]
     async Task Add() => await Shell.Current.GoToAsync("add");
@@ -45,12 +44,13 @@ public partial class MainMenuViewModel(Database db, SyncService sync, FirebaseSe
         await sync.SetTheme(Dark);
     }
 
+    // Connexion optionnelle pour activer la sync cross-device (Supabase free tier).
     [RelayCommand]
     async Task SignIn()
     {
         Busy = true;
         SignedIn = await sync.SignIn();
-        if (SignedIn) await Load();          // remote novels merged in
+        if (SignedIn) await Load();
         Dark = sync.Settings.Dark;
         Busy = false;
     }
